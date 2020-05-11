@@ -1,10 +1,13 @@
 # libraries are used along the code by explicit refer syntax package::function()
-source("R/fitness.R")
-source("R/bestk.R")
+source("../gama_sources/gama/R/fitness.R")
+source("../gama_sources/gama/R/bestk.R")
 
 gama.env <- new.env(parent = emptyenv())
 
 # generates an initial population of candidate centers for partitions
+# using two possible methods: pop.f and pop.f.2
+
+# generate randomly from the range lower:upper
 pop.f <- function(object) {
 
   lower <- object@lower
@@ -21,8 +24,25 @@ pop.f <- function(object) {
   return(population)
 }
 
+# generate randomly from only pre-observed values for each variable:
+pop.f.2 <- function(object){
+  lower <- object@lower
+  upper <- object@upper
+  nvars <- length(lower)
+
+  population <- matrix(as.double(NA), nrow = object@popSize, ncol = gama.env$dims * gama.env$k)
+
+
+  for(j in 1:nvars) {
+    sampled <- gama.env$dataset[sample(1:gama.env$rows,size=object@popSize, replace=FALSE),((j-1)%%gama.env$dims)+1]
+    population[,j] <- as.matrix(sampled)
+
+  }
+  return(population)
+}
+
 # entry point of the gama package
-gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.9,
+gama <- function(dataset = NULL, d2 = NULL, k = "broad", scale = FALSE, crossover.rate = 0.9,
                          mutation.rate = 0.01, elitism = 0.05, pop.size = 25,
                          generations = 100, seed.p = 42,
                          fitness.criterion = "ASW",
@@ -41,7 +61,10 @@ gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.
     ArgumentCheck::addError(
       msg = "'dataset' must be a data.frame object.",
       argcheck = Check)
-
+  if(class(d2 != 'dist'))
+    ArgumentCheck::addError(
+      msg = "'d2' must be a dist object (see 'dist' function in 'cluster package). Or send null and Distance Matrix will be calculated automatically. ",
+      argcheck = Check)
   if (is.null(k))
     ArgumentCheck::addError(
       msg = "'k' can not be NULL",
@@ -110,18 +133,22 @@ gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.
   }
 
   dims <- ncol(dataset)
+  rows <- nrow(dataset)
   gama.env$dataset <- dataset
   gama.env$k = k
   gama.env$dims = dims
+  gama.env$rows = rows
 
   elit.rate = floor(pop.size * elitism)
 
-  # distance matrix
-  d <- dist(dataset, method = "euclidean", diag = FALSE, upper = FALSE)
-  d2 <- d^2
+  if(is.null(d2)){
+    d <- dist(dataset, method = "euclidean", diag = FALSE, upper = FALSE)
+    d2 <- d^2
+    rm(d); gc()
+  }
 
   gama.env$d2 <- d2
-  rm(d); gc()
+
 
   lowers <- apply(dataset, 2, min)
   uppers <- apply(dataset, 2, max)
@@ -143,7 +170,7 @@ gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.
   # call GA functions
   genetic <- GA::ga(type = "real-valued",
                     seed = seed.p,
-                    population = pop.f,
+                    population = pop.f.2,
                     selection = s,
                     mutation = m,
                     crossover = c,
@@ -178,7 +205,7 @@ gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.
   ch <- clusterCrit::intCriteria(as.matrix(dataset), which.dists, "Calinski_Harabasz")
   ci <- clusterCrit::intCriteria(as.matrix(dataset), which.dists, "C_index")
   di <- clusterCrit::intCriteria(as.matrix(dataset), which.dists, "Dunn")
-
+  print(class(asw))
   # builds the solution object
   solution.df <- as.data.frame(solution)
   colnames(solution.df) <- colnames(dataset)
@@ -188,7 +215,7 @@ gama <- function(dataset = NULL, k = "broad", scale = FALSE, crossover.rate = 0.
                 original.data = as.data.frame(dataset),
                 centers = solution.df,
                 cluster = as.vector(which.dists),
-                silhouette = summary(asw)$avg.width,
+                silhouette = summary(asw),
                 calinski_harabasz = ch$calinski_harabasz,
                 c_index = ci$c_index,
                 dunn_index = di$dunn,
@@ -224,7 +251,7 @@ setClass(Class = "gama",
          slots = c(original.data = "data.frame",
          centers = "data.frame",
          cluster = "vector",
-         silhouette = "numeric",
+         silhouette = "ANY",
          calinski_harabasz = "numeric",
          c_index = "numeric",
          dunn_index = "numeric",
@@ -242,7 +269,7 @@ print.gama <- function(x, ...) {
   cat("\nCluster Centers:\n")
   print(x@centers)
   cat("\nAverage Silhouette Width index (ASW):\n")
-  print(x@silhouette)
+  print(x@silhouette$avg.width)
   cat("\nCalinski Harabasz index (CH):\n")
   print(x@calinski_harabasz)
   cat("\nC-Index (CI):\n")
@@ -254,5 +281,10 @@ print.gama <- function(x, ...) {
   print(x@call)
   cat("\nRuntime:\n")
   print(x@runtime)
+  cat("\nSilhouette Scores:\n")
+  print(x@silhouette)
+  cat("\nNumber of clusters:\n")
+  print(length(unique(x@cluster)))
+
 }
 setMethod("print", "gama", print.gama )
