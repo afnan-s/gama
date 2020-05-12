@@ -41,12 +41,27 @@ pop.f.2 <- function(object){
   return(population)
 }
 
+#penalty function, penalise based on shortage of number of clusters
+enforce.k.penalty <- function(m.individual,...) {
+  penalty <- 0
+  # counts how many centroids successfully assigned members:
+  which.dists <- apply(Rfast::dista(gama.env$dataset, m.individual, "euclidean", square = TRUE), 1, which.min)
+  num.clusters <- length(unique(which.dists))
+  difference <- abs(num.clusters - gama.env$k )
+
+  #if there's a difference, the penalty is the proportion:
+  if (difference > 0) {
+    penalty <- difference / gama.env$k
+  }
+  return (penalty)
+}
+
 # entry point of the gama package
 gama <- function(dataset = NULL, d2 = NULL, k = "broad", scale = FALSE, crossover.rate = 0.9,
                          mutation.rate = 0.01, elitism = 0.05, pop.size = 25,
                          generations = 100, seed.p = 42,
                          fitness.criterion = "ASW",
-                         penalty.function = NULL,
+                         penalty.function = enforce.k.penalty,
                          plot.internals = TRUE, ...) {
 
   # --- arguments validation --- #
@@ -61,7 +76,7 @@ gama <- function(dataset = NULL, d2 = NULL, k = "broad", scale = FALSE, crossove
     ArgumentCheck::addError(
       msg = "'dataset' must be a data.frame object.",
       argcheck = Check)
-  if(class(d2 != 'dist'))
+  if(class(d2) != 'dist')
     ArgumentCheck::addError(
       msg = "'d2' must be a dist object (see 'dist' function in 'cluster package). Or send null and Distance Matrix will be calculated automatically. ",
       argcheck = Check)
