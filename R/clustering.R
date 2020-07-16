@@ -42,17 +42,21 @@ pop.f.2 <- function(object){
 }
 
 #penalty function, penalise based on shortage of number of clusters
-enforce.k.penalty <- function(m.individual,...) {
+enforce.k.penalty <- function(m.individual) {
+
   penalty <- 0
   # counts how many centroids successfully assigned members:
   which.dists <- apply(Rfast::dista(gama.env$dataset, m.individual, "euclidean", square = TRUE), 1, which.min)
   num.clusters <- length(unique(which.dists))
   difference <- abs(num.clusters - gama.env$k )
-
+  #difference <- num.clusters
   #if there's a difference, the penalty is the proportion:
   if (difference > 0) {
     penalty <- difference / gama.env$k
+    #penalty <- difference
+    #penalty <- num.clusters
   }
+  #cat("In penalty: ", penalty, "\n")
   return (penalty)
 }
 
@@ -154,7 +158,8 @@ gama <- function(dataset = NULL, d2 = NULL, k = "broad", scale = FALSE, crossove
   gama.env$dims = dims
   gama.env$rows = rows
 
-  elit.rate = floor(pop.size * elitism)
+  #elit.rate = floor(pop.size * elitism)
+  elit.rate = base::max(1, round(pop.size*elitism))
 
   if(is.null(d2)){
     d <- dist(dataset, method = "euclidean", diag = FALSE, upper = FALSE)
@@ -194,11 +199,12 @@ gama <- function(dataset = NULL, d2 = NULL, k = "broad", scale = FALSE, crossove
                     pmutation = mutation.rate,
                     pcrossover = crossover.rate,
                     maxiter = generations,
-                    fitness = fitness.function, penalty.function,
+                    fitness = fitness.function,  
+                    penalty.function = penalty.function,
                     lower = lower_bound,
                     upper = upper_bound,
-                    parallel = FALSE,
-                    monitor = F)
+                    parallel = TRUE,
+                    monitor = TRUE)
 
 
   end.time <- Sys.time()
@@ -275,27 +281,27 @@ setClass(Class = "gama",
 
 print.gama <- function(x, ...) {
 
-  cat("\nDetails for the object of class 'gama':\n")
+  # cat("\nDetails for the object of class 'gama':\n")
 
-  cat("\nOriginal data (first rows):\n")
-  print(head(x@original.data))
-  cat("\nCluster partitions:\n")
-  print(x@cluster)
-  cat("\nCluster Centers:\n")
-  print(x@centers)
-  cat("\nAverage Silhouette Width index (ASW):\n")
-  print(x@silhouette$avg.width)
-  cat("\nCalinski Harabasz index (CH):\n")
-  print(x@calinski_harabasz)
-  cat("\nC-Index (CI):\n")
-  print(x@c_index)
-  cat("\nDunn index (DI):\n")
-  print(x@dunn_index)
+  # cat("\nOriginal data (first rows):\n")
+  # print(head(x@original.data))
+  # cat("\nCluster partitions:\n")
+  # print(x@cluster)
+  # cat("\nCluster Centers:\n")
+  # print(x@centers)
+  # cat("\nAverage Silhouette Width index (ASW):\n")
+  # print(x@silhouette$avg.width)
+  # cat("\nCalinski Harabasz index (CH):\n")
+  # print(x@calinski_harabasz)
+  # cat("\nC-Index (CI):\n")
+  # print(x@c_index)
+  # cat("\nDunn index (DI):\n")
+  # print(x@dunn_index)
 
-  cat("\nCall:\n")
-  print(x@call)
-  cat("\nRuntime:\n")
-  print(x@runtime)
+  # cat("\nCall:\n")
+  # print(x@call)
+  # cat("\nRuntime:\n")
+  # print(x@runtime)
   cat("\nSilhouette Scores:\n")
   print(x@silhouette)
   cat("\nNumber of clusters:\n")

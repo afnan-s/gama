@@ -13,11 +13,11 @@ fitness.asw <- function(individual, penalty.function = NULL, ...) {
   which.dists <- apply(Rfast::dista(data, m.individual, "euclidean", square = TRUE), 1, which.min)
 
   # to avoid a convergence for configurations different from user-specified k
-  if (length(unique(which.dists)) < k) {
+ # if (length(unique(which.dists)) < k) {
     # maximum penalty
-    fitness.value = -1
+ #   fitness.value = -1
 
-  } else {
+ # } else {
 
     # calculate the average silhouette width
     asw <- cluster::silhouette(which.dists, d2)
@@ -30,8 +30,9 @@ fitness.asw <- function(individual, penalty.function = NULL, ...) {
       penalty <- penalty.function(m.individual)
       fitness.value <- fitness.value - penalty
     }
-  }
-  return (fitness.value)
+#  }
+  #cat("Fitness value after penalty deduction: ", fitness.value, "\n")
+  return (round(fitness.value, digits = 2))
 }
 
 # Maximizing solutions through Calinski Harabasz (CH) criterion.
